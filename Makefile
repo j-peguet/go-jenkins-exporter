@@ -19,8 +19,12 @@ deps:
 
 .PHONY: install
 install:
-	go build -o $$GOPATH/bin/$(APP_NAME) -i main.go
+	go build -o $$GOPATH/bin/$(APP_NAME) main.go
 
 .PHONY: image
 image:
 	docker build -t $(APP_NAME):$(DOCKER_IMAGE_TAG) .
+
+.PHONY: run
+run:
+	$$GOPATH/bin/$(APP_NAME) -h
