@@ -58,26 +58,25 @@ var jenkinsFolderClasses = []string{
 	"jenkins.branch.OrganizationFolder",
 	"org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject"}
 
-var jobsList []job                 // List of discovered jobs
-var jobFloderLinks []string        // List of job folders
-var jobFolderVisitedLinks []string // List of visited/explored folders
-
 func GetData() *[]job {
+	var jobsList []job                 // List of discovered jobs
+	var jobFolderLinks []string        // List of job folders
+	var jobFolderVisitedLinks []string // List of visited/explored folders
 	logrus.Debug("Get data from jenkins..")
-	walkAndGetJobs(getJenkinsApiUrl())
+	walkAndGetJobs(getJenkinsApiUrl(), &jobsList, &jobFolderLinks, &jobFolderVisitedLinks)
 	logrus.Debug("Data retrieved successfully")
 	return &jobsList
 }
 
 // First url is the API's
-func walkAndGetJobs(url string) {
+func walkAndGetJobs(url string, jobsList *[]job, jobFolderLinks *[]string, jobFolderVisitedLinks *[]string) {
 	logrus.Debug("Walking ", url)
 	jobs := requestJson(url + "api/json" + createQuery())
-	jobFolderVisitedLinks = append(jobFolderVisitedLinks, url)
-	updateJobsAndFolders(jobs, &jobsList, &jobFloderLinks)
-	for _, fL := range jobFloderLinks {
-		if !isVisited(&fL) {
-			walkAndGetJobs(fL)
+	*jobFolderVisitedLinks = append(*jobFolderVisitedLinks, url)
+	updateJobsAndFolders(jobs, jobsList, jobFolderLinks)
+	for _, fL := range *jobFolderLinks {
+		if !isVisited(&fL, *jobFolderVisitedLinks) {
+			walkAndGetJobs(fL, jobsList, jobFolderLinks, jobFolderVisitedLinks)
 		}
 	}
 }
@@ -101,7 +100,7 @@ func isJobsFolder(class *string) bool {
 	return false
 }
 
-func isVisited(link *string) bool {
+func isVisited(link *string, jobFolderVisitedLinks []string) bool {
 	for _, j := range jobFolderVisitedLinks {
 		if *link == j {
 			return true

@@ -29,6 +29,6 @@ func Serve() {
 	http.Handle(config.Global.MetricsPath, promhttp.Handler())
 
 	// Listen and serve
-	logrus.Info("Listning on " + config.Global.ExporterHostPort + " ...")
+	logrus.Info("Listening on " + config.Global.ExporterHostPort + " ...")
 	logrus.Fatal(http.ListenAndServe(config.Global.ExporterHostPort, nil))
 }
