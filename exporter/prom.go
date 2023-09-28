@@ -119,7 +119,12 @@ func SetGauges() {
 			jobMetrics := prepareMetrics(&job)
 			for _, s := range jobStatuses {
 				for _, p := range jobStatusProperties {
-					prometheusMetrics[s+p].With(prometheus.Labels{"jobname": job.FullName}).Set(jobMetrics[s+p])
+					if job.FullName != "" {
+						// Check for older version of the API that doesn't have this JSON attribute
+						prometheusMetrics[s+p].With(prometheus.Labels{"jobname": job.FullName}).Set(jobMetrics[s+p])
+					} else {
+						prometheusMetrics[s+p].With(prometheus.Labels{"jobname": job.Name}).Set(jobMetrics[s+p])
+					}
 				}
 			}
 		}

@@ -36,6 +36,7 @@ type jStatus struct {
 // Jenkins job struct
 type job struct {
 	Class                 string  `json:"_class"`
+	Name                  string  `json:"name"`
 	FullName              string  `json:"fullName"`
 	URL                   string  `json:"url"`
 	LastBuild             jStatus `json:"lastBuild"`
@@ -198,7 +199,7 @@ func createQuery() string {
 		query += "," + s + jobStatusProperties
 	}
 	return strings.ReplaceAll(strings.ReplaceAll(
-		fmt.Sprintf("?tree=jobs[fullName,url%s]", query),
+		fmt.Sprintf("?tree=jobs[fullName,name,url%s]", query),
 		"\n", ""),
 		"\t", "")
 }
