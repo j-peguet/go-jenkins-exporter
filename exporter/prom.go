@@ -27,6 +27,16 @@ func init() {
 				"jobname",
 			},
 		)
+		// Color
+		prometheusMetrics[s+"Color"] = promauto.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "jenkins_job_" + toSnakeCase(s) + "_color",
+				Help: "Jenkins build color for " + s,
+			},
+			[]string{
+				"jobname",
+			},
+		)
 		// Duration
 		prometheusMetrics[s+"Duration"] = promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -136,6 +146,7 @@ func prepareMetrics(job *job) map[string]float64 {
 	var jobMetrics = make(map[string]float64, 100)
 	// LastBuild
 	jobMetrics["lastBuildNumber"] = i2F64(job.LastBuild.Number)
+	jobMetrics["lastBuildColor"] = whichColor(job.ColorPtr)
 	jobMetrics["lastBuildDuration"] = i2F64(job.LastBuild.Duration) / 1000.0
 	jobMetrics["lastBuildTimestamp"] = i2F64(job.LastBuild.Timestamp) / 1000.0
 	if len(job.LastBuild.Actions) == 1 {
@@ -222,8 +233,34 @@ func prepareMetrics(job *job) map[string]float64 {
 	return jobMetrics
 }
 
+func whichColor(color *string) float64 {
+	switch {
+	case color == nil:
+		// No value
+		return -1
+	case *color == "blue" || *color == "blue_anime":
+		return 0
+	case *color == "red" || *color == "red_anime":
+		return 1
+	case *color == "yellow" || *color == "yellow_anime":
+		return 2
+	case *color == "notbuilt" || *color == "notbuilt_anime":
+		return 3
+	case *color == "disabled" || *color == "disabled_anime":
+		return 4
+	case *color == "aborted" || *color == "aborted_anime":
+		return 5
+	case *color == "grey" || *color == "grey_anime":
+		return 6
+	default:
+		// Return for unknown values
+		return 100
+	}
+}
+
 var jobStatusProperties = []string{
 	"Number",
+	"Color",
 	"Timestamp",
 	"Duration",
 	"QueuingDuration",

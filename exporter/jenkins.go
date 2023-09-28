@@ -38,6 +38,7 @@ type job struct {
 	Class                 string  `json:"_class"`
 	Name                  string  `json:"name"`
 	FullName              string  `json:"fullName"`
+	ColorPtr              *string `json:"color"`
 	URL                   string  `json:"url"`
 	LastBuild             jStatus `json:"lastBuild"`
 	LastCompletedBuild    jStatus `json:"lastCompletedBuild"`
@@ -57,7 +58,8 @@ type JenkinsResponse struct {
 var jenkinsFolderClasses = []string{
 	"com.cloudbees.hudson.plugins.folder.Folder",
 	"jenkins.branch.OrganizationFolder",
-	"org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject"}
+	"org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject",
+	"org.jenkinsci.plugins.pipeline.multibranch.defaults.PipelineMultiBranchDefaultsProject"}
 
 func GetData() *[]job {
 	var jobsList []job                 // List of discovered jobs
@@ -84,7 +86,9 @@ func walkAndGetJobs(url string, jobsList *[]job, jobFolderLinks *[]string, jobFo
 
 func updateJobsAndFolders(reply, jL *[]job, jF *[]string) {
 	for _, j := range *reply {
-		if isJobsFolder(&j.Class) {
+		if j.Class != "" && isJobsFolder(&j.Class) ||
+			// Check for older version of the API that doesn't have class attribute
+			j.Class == "" && j.ColorPtr == nil {
 			*jF = append(*jF, j.URL)
 			continue
 		}
@@ -199,7 +203,7 @@ func createQuery() string {
 		query += "," + s + jobStatusProperties
 	}
 	return strings.ReplaceAll(strings.ReplaceAll(
-		fmt.Sprintf("?tree=jobs[fullName,name,url%s]", query),
+		fmt.Sprintf("?tree=jobs[fullName,name,color,url%s]", query),
 		"\n", ""),
 		"\t", "")
 }
