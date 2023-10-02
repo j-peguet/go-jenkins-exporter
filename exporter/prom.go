@@ -147,14 +147,12 @@ func SetGauges() {
 		var jResp *[]job = GetData()
 		for _, job := range *jResp {
 			jobMetrics := prepareMetrics(&job)
-			for _, s := range jobStatuses {
-				for _, p := range jobStatusProperties {
-					if job.FullName != "" {
-						// Check for older version of the API that doesn't have this JSON attribute
-						prometheusMetrics[s+p].With(prometheus.Labels{"jobname": job.FullName}).Set(jobMetrics[s+p])
-					} else {
-						prometheusMetrics[s+p].With(prometheus.Labels{"jobname": job.Name}).Set(jobMetrics[s+p])
-					}
+			for key, value := range jobMetrics {
+				// Check for older version of the API that doesn't have this JSON attribute
+				if job.FullName != "" {
+					prometheusMetrics[key].With(prometheus.Labels{"jobname": job.FullName}).Set(value)
+				} else {
+					prometheusMetrics[key].With(prometheus.Labels{"jobname": job.Name}).Set(value)
 				}
 			}
 		}
@@ -171,86 +169,98 @@ func prepareMetrics(job *job) map[string]float64 {
 	jobMetrics["lastBuildCause"] = whichCause(job.LastBuild)
 	jobMetrics["lastBuildDuration"] = i2F64(job.LastBuild.Duration) / 1000.0
 	jobMetrics["lastBuildTimestamp"] = i2F64(job.LastBuild.Timestamp) / 1000.0
-	if len(job.LastBuild.Actions) == 1 {
-		jobMetrics["lastBuildQueuingDurationMillis"] = i2F64(job.LastBuild.Actions[0].QueuingDurationMillis) / 1000
-		jobMetrics["lastBuildTotalDurationMillis"] = i2F64(job.LastBuild.Actions[0].TotalDurationMillis) / 1000
-		jobMetrics["lastBuildSkipCount"] = i2F64(job.LastBuild.Actions[0].SkipCount)
-		jobMetrics["lastBuildFailCount"] = i2F64(job.LastBuild.Actions[0].FailCount)
-		jobMetrics["lastBuildTotalCount"] = i2F64(job.LastBuild.Actions[0].TotalCount)
-		jobMetrics["lastBuildPassCount"] = i2F64(job.LastBuild.Actions[0].PassCount)
-	}
+	jobMetrics["lastBuildQueuingDuration"] = getTimeInQueueValue(job.LastBuild.Actions, "QueuingDuration")
+	jobMetrics["lastBuildTotalDuration"] = getTimeInQueueValue(job.LastBuild.Actions, "TotalDuration")
+	// if len(job.LastBuild.Actions) == 1 {
+	// jobMetrics["lastBuildSkipCount"] = i2F64(job.LastBuild.Actions[0].SkipCount)
+	// jobMetrics["lastBuildFailCount"] = i2F64(job.LastBuild.Actions[0].FailCount)
+	// jobMetrics["lastBuildTotalCount"] = i2F64(job.LastBuild.Actions[0].TotalCount)
+	// jobMetrics["lastBuildPassCount"] = i2F64(job.LastBuild.Actions[0].PassCount)
+	// }
 	// LastCompletedBuild
 	jobMetrics["lastCompletedBuildNumber"] = i2F64(job.LastCompletedBuild.Number)
+	jobMetrics["lastCompletedBuildResult"] = whichResult(job.LastCompletedBuild)
 	jobMetrics["lastCompletedBuildDuration"] = i2F64(job.LastCompletedBuild.Duration) / 1000
 	jobMetrics["lastCompletedBuildTimestamp"] = i2F64(job.LastCompletedBuild.Timestamp) / 1000
-	if len(job.LastCompletedBuild.Actions) == 1 {
-		jobMetrics["lastCompletedBuildQueuingDurationMillis"] = i2F64(job.LastCompletedBuild.Actions[0].QueuingDurationMillis) / 1000
-		jobMetrics["lastCompletedBuildTotalDurationMillis"] = i2F64(job.LastCompletedBuild.Actions[0].TotalDurationMillis) / 1000
-		jobMetrics["lastCompletedBuildSkipCount"] = i2F64(job.LastCompletedBuild.Actions[0].SkipCount)
-		jobMetrics["lastCompletedBuildFailCount"] = i2F64(job.LastCompletedBuild.Actions[0].FailCount)
-		jobMetrics["lastCompletedBuildTotalCount"] = i2F64(job.LastCompletedBuild.Actions[0].TotalCount)
-		jobMetrics["lastCompletedBuildPassCount"] = i2F64(job.LastCompletedBuild.Actions[0].PassCount)
-	}
+	jobMetrics["lastCompletedBuildCause"] = whichCause(job.LastCompletedBuild)
+	jobMetrics["lastCompletedBuildQueuingDuration"] = getTimeInQueueValue(job.LastCompletedBuild.Actions, "QueuingDuration")
+	jobMetrics["lastCompletedBuildTotalDuration"] = getTimeInQueueValue(job.LastCompletedBuild.Actions, "TotalDuration")
+	// if len(job.LastCompletedBuild.Actions) == 1 {
+	// jobMetrics["lastCompletedBuildSkipCount"] = i2F64(job.LastCompletedBuild.Actions[0].SkipCount)
+	// jobMetrics["lastCompletedBuildFailCount"] = i2F64(job.LastCompletedBuild.Actions[0].FailCount)
+	// jobMetrics["lastCompletedBuildTotalCount"] = i2F64(job.LastCompletedBuild.Actions[0].TotalCount)
+	// jobMetrics["lastCompletedBuildPassCount"] = i2F64(job.LastCompletedBuild.Actions[0].PassCount)
+	// }
 	// LastFailedBuild
 	jobMetrics["lastFailedBuildNumber"] = i2F64(job.LastFailedBuild.Number)
+	jobMetrics["lastFailedBuildResult"] = whichResult(job.LastFailedBuild)
 	jobMetrics["lastFailedBuildDuration"] = i2F64(job.LastFailedBuild.Duration) / 1000
 	jobMetrics["lastFailedBuildTimestamp"] = i2F64(job.LastFailedBuild.Timestamp) / 1000
-	if len(job.LastFailedBuild.Actions) == 1 {
-		jobMetrics["lastFailedBuildQueuingDurationMillis"] = i2F64(job.LastFailedBuild.Actions[0].QueuingDurationMillis) / 1000
-		jobMetrics["lastFailedBuildTotalDurationMillis"] = i2F64(job.LastFailedBuild.Actions[0].TotalDurationMillis) / 1000
-		jobMetrics["lastFailedBuildSkipCount"] = i2F64(job.LastFailedBuild.Actions[0].SkipCount)
-		jobMetrics["lastFailedBuildFailCount"] = i2F64(job.LastFailedBuild.Actions[0].FailCount)
-		jobMetrics["lastFailedBuildTotalCount"] = i2F64(job.LastFailedBuild.Actions[0].TotalCount)
-		jobMetrics["lastFailedBuildPassCount"] = i2F64(job.LastFailedBuild.Actions[0].PassCount)
-	}
+	jobMetrics["lastFailedBuildCause"] = whichCause(job.LastFailedBuild)
+	jobMetrics["lastFailedBuildQueuingDuration"] = getTimeInQueueValue(job.LastFailedBuild.Actions, "QueuingDuration")
+	jobMetrics["lastFailedBuildTotalDuration"] = getTimeInQueueValue(job.LastFailedBuild.Actions, "TotalDuration")
+	// if len(job.LastFailedBuild.Actions) == 1 {
+	// jobMetrics["lastFailedBuildSkipCount"] = i2F64(job.LastFailedBuild.Actions[0].SkipCount)
+	// jobMetrics["lastFailedBuildFailCount"] = i2F64(job.LastFailedBuild.Actions[0].FailCount)
+	// jobMetrics["lastFailedBuildTotalCount"] = i2F64(job.LastFailedBuild.Actions[0].TotalCount)
+	// jobMetrics["lastFailedBuildPassCount"] = i2F64(job.LastFailedBuild.Actions[0].PassCount)
+	// }
 	// LastStableBuild
 	jobMetrics["lastStableBuildNumber"] = i2F64(job.LastStableBuild.Number)
+	jobMetrics["lastStableBuildResult"] = whichResult(job.LastStableBuild)
 	jobMetrics["lastStableBuildDuration"] = i2F64(job.LastStableBuild.Duration) / 1000
 	jobMetrics["lastStableBuildTimestamp"] = i2F64(job.LastStableBuild.Timestamp) / 1000
-	if len(job.LastStableBuild.Actions) == 1 {
-		jobMetrics["lastStableBuildQueuingDurationMillis"] = i2F64(job.LastStableBuild.Actions[0].QueuingDurationMillis) / 1000
-		jobMetrics["lastStableBuildTotalDurationMillis"] = i2F64(job.LastStableBuild.Actions[0].TotalDurationMillis) / 1000
-		jobMetrics["lastStableBuildSkipCount"] = i2F64(job.LastStableBuild.Actions[0].SkipCount)
-		jobMetrics["lastStableBuildFailCount"] = i2F64(job.LastStableBuild.Actions[0].FailCount)
-		jobMetrics["lastStableBuildTotalCount"] = i2F64(job.LastStableBuild.Actions[0].TotalCount)
-		jobMetrics["lastStableBuildPassCount"] = i2F64(job.LastStableBuild.Actions[0].PassCount)
-	}
+	jobMetrics["lastStableBuildCause"] = whichCause(job.LastStableBuild)
+	jobMetrics["lastStableBuildQueuingDuration"] = getTimeInQueueValue(job.LastStableBuild.Actions, "QueuingDuration")
+	jobMetrics["lastStableBuildTotalDuration"] = getTimeInQueueValue(job.LastStableBuild.Actions, "TotalDuration")
+	// if len(job.LastStableBuild.Actions) == 1 {
+	// jobMetrics["lastStableBuildSkipCount"] = i2F64(job.LastStableBuild.Actions[0].SkipCount)
+	// jobMetrics["lastStableBuildFailCount"] = i2F64(job.LastStableBuild.Actions[0].FailCount)
+	// jobMetrics["lastStableBuildTotalCount"] = i2F64(job.LastStableBuild.Actions[0].TotalCount)
+	// jobMetrics["lastStableBuildPassCount"] = i2F64(job.LastStableBuild.Actions[0].PassCount)
+	// }
 	// LastSuccessfulBuild
 	jobMetrics["lastSuccessfulBuildNumber"] = i2F64(job.LastSuccessfulBuild.Number)
+	jobMetrics["lastSuccessfulBuildResult"] = whichResult(job.LastSuccessfulBuild)
 	jobMetrics["lastSuccessfulBuildDuration"] = i2F64(job.LastSuccessfulBuild.Duration) / 1000
 	jobMetrics["lastSuccessfulBuildTimestamp"] = i2F64(job.LastSuccessfulBuild.Timestamp) / 1000
-	if len(job.LastSuccessfulBuild.Actions) == 1 {
-		jobMetrics["lastSuccessfulBuildQueuingDurationMillis"] = i2F64(job.LastSuccessfulBuild.Actions[0].QueuingDurationMillis) / 1000
-		jobMetrics["lastSuccessfulBuildTotalDurationMillis"] = i2F64(job.LastSuccessfulBuild.Actions[0].TotalDurationMillis) / 1000
-		jobMetrics["lastSuccessfulBuildSkipCount"] = i2F64(job.LastSuccessfulBuild.Actions[0].SkipCount)
-		jobMetrics["lastSuccessfulBuildFailCount"] = i2F64(job.LastSuccessfulBuild.Actions[0].FailCount)
-		jobMetrics["lastSuccessfulBuildTotalCount"] = i2F64(job.LastSuccessfulBuild.Actions[0].TotalCount)
-		jobMetrics["lastSuccessfulBuildPassCount"] = i2F64(job.LastSuccessfulBuild.Actions[0].PassCount)
-	}
+	jobMetrics["lastSuccessfulBuildCause"] = whichCause(job.LastSuccessfulBuild)
+	jobMetrics["lastSuccessfulBuildQueuingDuration"] = getTimeInQueueValue(job.LastSuccessfulBuild.Actions, "QueuingDuration")
+	jobMetrics["lastSuccessfulBuildTotalDuration"] = getTimeInQueueValue(job.LastSuccessfulBuild.Actions, "TotalDuration")
+	// if len(job.LastSuccessfulBuild.Actions) == 1 {
+	// jobMetrics["lastSuccessfulBuildSkipCount"] = i2F64(job.LastSuccessfulBuild.Actions[0].SkipCount)
+	// jobMetrics["lastSuccessfulBuildFailCount"] = i2F64(job.LastSuccessfulBuild.Actions[0].FailCount)
+	// jobMetrics["lastSuccessfulBuildTotalCount"] = i2F64(job.LastSuccessfulBuild.Actions[0].TotalCount)
+	// jobMetrics["lastSuccessfulBuildPassCount"] = i2F64(job.LastSuccessfulBuild.Actions[0].PassCount)
+	// }
 	// LastUnstableBuild
 	jobMetrics["lastUnstableBuildNumber"] = i2F64(job.LastUnstableBuild.Number)
+	jobMetrics["lastUnstableBuildResult"] = whichResult(job.LastUnstableBuild)
 	jobMetrics["lastUnstableBuildDuration"] = i2F64(job.LastUnstableBuild.Duration) / 1000
 	jobMetrics["lastUnstableBuildTimestamp"] = i2F64(job.LastUnstableBuild.Timestamp) / 1000
-	if len(job.LastUnstableBuild.Actions) == 1 {
-		jobMetrics["lastUnstableBuildQueuingDurationMillis"] = i2F64(job.LastUnstableBuild.Actions[0].QueuingDurationMillis) / 1000
-		jobMetrics["lastUnstableBuildTotalDurationMillis"] = i2F64(job.LastUnstableBuild.Actions[0].TotalDurationMillis) / 1000
-		jobMetrics["lastUnstableBuildSkipCount"] = i2F64(job.LastUnstableBuild.Actions[0].SkipCount)
-		jobMetrics["lastUnstableBuildFailCount"] = i2F64(job.LastUnstableBuild.Actions[0].FailCount)
-		jobMetrics["lastUnstableBuildTotalCount"] = i2F64(job.LastUnstableBuild.Actions[0].TotalCount)
-		jobMetrics["lastUnstableBuildPassCount"] = i2F64(job.LastUnstableBuild.Actions[0].PassCount)
-	}
+	jobMetrics["lastUnstableBuildCause"] = whichCause(job.LastUnstableBuild)
+	jobMetrics["lastUnstableBuildQueuingDuration"] = getTimeInQueueValue(job.LastUnstableBuild.Actions, "QueuingDuration")
+	jobMetrics["lastUnstableBuildTotalDuration"] = getTimeInQueueValue(job.LastUnstableBuild.Actions, "TotalDuration")
+	// if len(job.LastUnstableBuild.Actions) == 1 {
+	// jobMetrics["lastUnstableBuildSkipCount"] = i2F64(job.LastUnstableBuild.Actions[0].SkipCount)
+	// jobMetrics["lastUnstableBuildFailCount"] = i2F64(job.LastUnstableBuild.Actions[0].FailCount)
+	// jobMetrics["lastUnstableBuildTotalCount"] = i2F64(job.LastUnstableBuild.Actions[0].TotalCount)
+	// jobMetrics["lastUnstableBuildPassCount"] = i2F64(job.LastUnstableBuild.Actions[0].PassCount)
+	// }
 	// LastUnsuccessfulBuild
 	jobMetrics["lastUnsuccessfulBuildNumber"] = i2F64(job.LastUnsuccessfulBuild.Number)
+	jobMetrics["lastUnsuccessfulBuildResult"] = whichResult(job.LastUnsuccessfulBuild)
 	jobMetrics["lastUnsuccessfulBuildDuration"] = i2F64(job.LastUnsuccessfulBuild.Duration) / 1000
 	jobMetrics["lastUnsuccessfulBuildTimestamp"] = i2F64(job.LastUnsuccessfulBuild.Timestamp) / 1000
-	if len(job.LastUnsuccessfulBuild.Actions) == 1 {
-		jobMetrics["lastUnsuccessfulBuildQueuingDurationMillis"] = i2F64(job.LastUnsuccessfulBuild.Actions[0].QueuingDurationMillis) / 1000
-		jobMetrics["lastUnsuccessfulBuildTotalDurationMillis"] = i2F64(job.LastUnsuccessfulBuild.Actions[0].TotalDurationMillis) / 1000
-		jobMetrics["lastUnsuccessfulBuildSkipCount"] = i2F64(job.LastUnsuccessfulBuild.Actions[0].SkipCount)
-		jobMetrics["lastUnsuccessfulBuildFailCount"] = i2F64(job.LastUnsuccessfulBuild.Actions[0].FailCount)
-		jobMetrics["lastUnsuccessfulBuildTotalCount"] = i2F64(job.LastUnsuccessfulBuild.Actions[0].TotalCount)
-		jobMetrics["lastUnsuccessfulBuildPassCount"] = i2F64(job.LastUnsuccessfulBuild.Actions[0].PassCount)
-	}
+	jobMetrics["lastUnsuccessfulBuildCause"] = whichCause(job.LastUnsuccessfulBuild)
+	jobMetrics["lastUnsuccessfulBuildQueuingDuration"] = getTimeInQueueValue(job.LastUnsuccessfulBuild.Actions, "QueuingDuration")
+	jobMetrics["lastUnsuccessfulBuildTotalDuration"] = getTimeInQueueValue(job.LastUnsuccessfulBuild.Actions, "TotalDuration")
+	// if len(job.LastUnsuccessfulBuild.Actions) == 1 {
+	// jobMetrics["lastUnsuccessfulBuildSkipCount"] = i2F64(job.LastUnsuccessfulBuild.Actions[0].SkipCount)
+	// jobMetrics["lastUnsuccessfulBuildFailCount"] = i2F64(job.LastUnsuccessfulBuild.Actions[0].FailCount)
+	// jobMetrics["lastUnsuccessfulBuildTotalCount"] = i2F64(job.LastUnsuccessfulBuild.Actions[0].TotalCount)
+	// jobMetrics["lastUnsuccessfulBuildPassCount"] = i2F64(job.LastUnsuccessfulBuild.Actions[0].PassCount)
+	// }
 
 	return jobMetrics
 }
@@ -390,19 +400,20 @@ func whichCause(lastBuild jStatus) float64 {
 	return -1
 }
 
-var jobStatusProperties = []string{
-	"Number",
-	"Color",
-	"Result",
-	"Cause",
-	"Timestamp",
-	"Duration",
-	"QueuingDuration",
-	"TotalDuration",
-	"SkipCounts",
-	"FailCounts",
-	"TotalCounts",
-	"PassCounts",
+func getTimeInQueueValue(actions []jActions, value string) float64 {
+	timeInQueueAction := findActionByClass(actions, "jenkins.metrics.impl.TimeInQueueAction")
+	if timeInQueueAction != nil {
+		switch value {
+		case "QueuingDuration":
+			return i2F64(timeInQueueAction.QueuingDurationMillis) / 1000
+		case "TotalDuration":
+			return i2F64(timeInQueueAction.TotalDurationMillis) / 1000
+		default:
+			// Return another value for unknow value
+			return 100
+		}
+	}
+	return -1
 }
 
 func i2F64(i int) float64 {
