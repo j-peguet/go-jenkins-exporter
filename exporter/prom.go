@@ -37,6 +37,16 @@ func init() {
 				"jobname",
 			},
 		)
+		// Result
+		prometheusMetrics[s+"Result"] = promauto.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "jenkins_job_" + toSnakeCase(s) + "_result",
+				Help: "Jenkins build result for " + s,
+			},
+			[]string{
+				"jobname",
+			},
+		)
 		// Duration
 		prometheusMetrics[s+"Duration"] = promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -147,6 +157,7 @@ func prepareMetrics(job *job) map[string]float64 {
 	// LastBuild
 	jobMetrics["lastBuildNumber"] = i2F64(job.LastBuild.Number)
 	jobMetrics["lastBuildColor"] = whichColor(job.ColorPtr)
+	jobMetrics["lastBuildResult"] = whichResult(job.LastBuild)
 	jobMetrics["lastBuildDuration"] = i2F64(job.LastBuild.Duration) / 1000.0
 	jobMetrics["lastBuildTimestamp"] = i2F64(job.LastBuild.Timestamp) / 1000.0
 	if len(job.LastBuild.Actions) == 1 {
@@ -258,9 +269,35 @@ func whichColor(color *string) float64 {
 	}
 }
 
+func whichResult(build jStatus) float64 {
+	if build.Result == "FAILURE" {
+		return 0
+	}
+	if build.Result == "UNSTABLE" {
+		return 0.5
+	}
+	if build.Result == "SUCCESS" {
+		return 1
+	}
+	if build.Result == "ABORTED" {
+		return 2
+	}
+	// Return a value when the job has no build
+	if build.Timestamp == 0 || build.Result == "NOT_BUILT" {
+		return 3
+	}
+	// Return a value when the last job build is running
+	if build.Duration == 0 {
+		return 4
+	}
+	// Return for unknown values
+	return 100
+}
+
 var jobStatusProperties = []string{
 	"Number",
 	"Color",
+	"Result",
 	"Timestamp",
 	"Duration",
 	"QueuingDuration",

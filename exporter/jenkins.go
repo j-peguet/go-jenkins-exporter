@@ -28,9 +28,10 @@ type jActions struct {
 type jStatus struct {
 	Class     string `json:"_class"`
 	Actions   []jActions
-	Duration  int `json:"duration"`
-	Number    int `json:"number"`
-	Timestamp int `json:"timestamp"`
+	Duration  int    `json:"duration"`
+	Number    int    `json:"number"`
+	Timestamp int    `json:"timestamp"`
+	Result    string `json:"result"`
 }
 
 // Jenkins job struct
@@ -188,6 +189,7 @@ func createQuery() string {
 	var jobStatusProperties string = `[
 		fullName,
 		number,
+		result,
 		timestamp,
 		duration,
 		actions[
