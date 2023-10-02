@@ -1,4 +1,4 @@
-FROM golang:1.12.7-alpine AS build
+FROM golang:1.21.1-alpine AS build
 
 COPY . /go/src/github.com/goodbins/go-jenkins-exporter
 WORKDIR /go/src/github.com/goodbins/go-jenkins-exporter
