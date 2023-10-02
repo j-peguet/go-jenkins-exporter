@@ -13,15 +13,22 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Jenkins job causes struct
+type jCauses struct {
+	Class            string `json:"_class"`
+	ShortDescription string `json:"shortDescription"`
+}
+
 // Jenkins job actions struct
 type jActions struct {
 	Class                 string `json:"_class"`
-	QueuingDurationMillis int    `json:"queuingDurationMillis"`
-	TotalDurationMillis   int    `json:"totalDurationMillis"`
-	SkipCount             int    `json:"skipCount"`
-	FailCount             int    `json:"failCount"`
-	TotalCount            int    `json:"totalCount"`
-	PassCount             int    `json:"passCount"`
+	Causes                []jCauses
+	QueuingDurationMillis int `json:"queuingDurationMillis"`
+	TotalDurationMillis   int `json:"totalDurationMillis"`
+	SkipCount             int `json:"skipCount"`
+	FailCount             int `json:"failCount"`
+	TotalCount            int `json:"totalCount"`
+	PassCount             int `json:"passCount"`
 }
 
 // Jenkins job statuses struct
@@ -193,6 +200,7 @@ func createQuery() string {
 		timestamp,
 		duration,
 		actions[
+			causes[shortDescription],
 			queuingDurationMillis,
 			totalDurationMillis,
 			skipCount,

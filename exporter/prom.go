@@ -47,6 +47,16 @@ func init() {
 				"jobname",
 			},
 		)
+		// Causes
+		prometheusMetrics[s+"Cause"] = promauto.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "jenkins_job_" + toSnakeCase(s) + "_cause",
+				Help: "Jenkins build cause for " + s,
+			},
+			[]string{
+				"jobname",
+			},
+		)
 		// Duration
 		prometheusMetrics[s+"Duration"] = promauto.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -158,6 +168,7 @@ func prepareMetrics(job *job) map[string]float64 {
 	jobMetrics["lastBuildNumber"] = i2F64(job.LastBuild.Number)
 	jobMetrics["lastBuildColor"] = whichColor(job.ColorPtr)
 	jobMetrics["lastBuildResult"] = whichResult(job.LastBuild)
+	jobMetrics["lastBuildCause"] = whichCause(job.LastBuild)
 	jobMetrics["lastBuildDuration"] = i2F64(job.LastBuild.Duration) / 1000.0
 	jobMetrics["lastBuildTimestamp"] = i2F64(job.LastBuild.Timestamp) / 1000.0
 	if len(job.LastBuild.Actions) == 1 {
@@ -294,10 +305,96 @@ func whichResult(build jStatus) float64 {
 	return 100
 }
 
+// Return action, by the class given in param
+func findActionByClass(actions []jActions, className string) *jActions {
+	for _, action := range actions {
+		if action.Class == className {
+			return &action
+		}
+	}
+	return nil
+}
+
+// Return cause action (for older version of the API that doesn't have class attribute)
+func findOldCauseAction(actions []jActions) *jActions {
+	for _, action := range actions {
+		if len(action.Causes) >= 1 {
+			return &action
+		}
+	}
+	return nil
+}
+
+func whichCause(lastBuild jStatus) float64 {
+	causeAction := findActionByClass(lastBuild.Actions, "hudson.model.CauseAction")
+	// Case for newer API version
+	if causeAction != nil {
+		desc := causeAction.Causes[0].Class
+		switch {
+		// Started by timer or Started by timer with parameters
+		case desc == "hudson.triggers.TimerTrigger$TimerTriggerCause" || desc == "org.jenkinsci.plugins.parameterizedscheduler.ParameterizedTimerTriggerCause":
+			return 0
+		// Started by user
+		case desc == "hudson.model.Cause$UserIdCause" || desc == "au.com.centrumsystems.hudson.plugin.buildpipeline.BuildPipelineView$MyUserIdCause":
+			return 1
+		// Started by upstream project
+		case desc == "hudson.model.Cause$UpstreamCause":
+			return 2
+		case desc == "hudson.triggers.SCMTrigger$SCMTriggerCause":
+			return 3
+		case desc == "jenkins.branch.BranchIndexingCause":
+			return 4
+		case desc == "com.dabsquared.gitlabjenkins.cause.GitLabWebHookCause":
+			return 5
+		// Started from command line
+		case desc == "hudson.cli.BuildCommand$CLICause":
+			return 6
+		// Started by remote host
+		case desc == "hudson.model.Cause$RemoteCause":
+			return 7
+		// Replayed
+		case desc == "org.jenkinsci.plugins.workflow.cps.replay.ReplayCause":
+			return 8
+		// Restarted from build
+		case desc == "org.jenkinsci.plugins.pipeline.modeldefinition.causes.RestartDeclarativePipelineCause":
+			return 9
+		// Push event to branch or Merge request
+		case desc == "jenkins.branch.BranchEventCause":
+			return 10
+		default:
+			// Return another value for unknow value
+			return 100
+		}
+	}
+	oldCauseAction := findOldCauseAction(lastBuild.Actions)
+	// Case for older API version
+	if oldCauseAction != nil {
+		desc := oldCauseAction.Causes[0].ShortDescription
+		switch {
+		case strings.HasPrefix(desc, "Started by timer"):
+			return 0
+		case strings.HasPrefix(desc, "Started by user"):
+			return 1
+		case strings.HasPrefix(desc, "Started by upstream project"):
+			return 2
+		case strings.HasPrefix(desc, "Started by an SCM change"):
+			return 3
+		case strings.HasPrefix(desc, "Started by remote host"):
+			return 7
+		default:
+			// Return another value for unknow value
+			return 100
+		}
+	}
+	// Return a value if nil (ex: job with no build or no data)
+	return -1
+}
+
 var jobStatusProperties = []string{
 	"Number",
 	"Color",
 	"Result",
+	"Cause",
 	"Timestamp",
 	"Duration",
 	"QueuingDuration",
