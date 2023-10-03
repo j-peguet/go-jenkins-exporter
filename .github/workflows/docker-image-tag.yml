@@ -22,7 +22,7 @@ jobs:
         with:
           # list of Docker images to use as base name for tags
           images: |
-            $DOCKER_USER/$REPO_NAME
+            ${{DOCKER_USER}}/${{REPO_NAME}}
           # generate Docker tags based on the following events/attributes
           tags: |
             type=semver,pattern={{version}}
@@ -36,8 +36,8 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
-          username: $DOCKER_USER
-          password: $DOCKER_PASSWORD
+          username: ${{DOCKER_USER}}
+          password: ${{DOCKER_PASSWORD}}
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
