@@ -1,0 +1,24 @@
+name: Docker Image - Develop
+
+on:
+  push:
+    branches:
+      - develop
+
+env:
+  DOCKER_USER: jpeguet
+  DOCKER_PASSWORD: ${{secrets.DOCKERHUB_TOKEN}}
+  REPO_NAME: go-jenkins-exporter
+
+jobs:
+  push-image-to-docker-hub:  # job name
+    runs-on: ubuntu-latest 
+    steps:
+    - uses: actions/checkout@v2 # first action : checkout source code
+    - name: docker login
+      run: | # log into docker hub account
+        docker login -u $DOCKER_USER -p $DOCKER_PASSWORD  
+    - name: Build the Docker image # push The image to the docker hub
+      run: docker build . --file Dockerfile --tag $DOCKER_USER/$REPO_NAME:latest
+    - name: Docker Push
+      run: docker push $DOCKER_USER/$REPO_NAME:latest
