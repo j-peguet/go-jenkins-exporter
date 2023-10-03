@@ -1,8 +1,9 @@
-name: Docker Image CI
+name: Docker Image - Develop
 
 on:
   push:
-    branches: [ "master", "develop" ]
+    branches:
+      - develop
 
 env:
   DOCKER_USER: jpeguet
